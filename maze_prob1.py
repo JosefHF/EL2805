@@ -49,7 +49,7 @@ class Maze:
         self.n_actions_minotaur       = len(self.actions_minotaur);
         self.n_states                 = len(self.states);
         self.transition_probabilities = self.__transitions();
-        self.transition_probabilities_minotaur = self._transitions(True)
+        #self.transition_probabilities_minotaur = self._transitions(True)
         self.rewards                  = self.__rewards(weights=weights,
                                                 random_rewards=random_rewards);
 
@@ -78,7 +78,7 @@ class Maze:
                             s += 1;
         return states, map
 
-    def __move(self, state, action, minotaur=False):
+    def __move(self, state, action):
         """ Makes a step in the maze, given a current position and an action.
             If the action STAY or an inadmissible action is used, the agent stays in place.
 
@@ -87,24 +87,35 @@ class Maze:
         hitting_maze_obstacle = False
         x_index = 0
         y_index = 1
-        if minotaur:
-            x_index = 2
-            y_index = 3
 
         # Compute the future position given current (state, action)
-        row = self.states[state][x_index] + self.actions[action][x_index];
-        col = self.states[state][y_index] + self.actions[action][y_index];
+        row_player = self.states[state][x_index] + self.actions[action][x_index];
+        col_player = self.states[state][y_index] + self.actions[action][y_index];
         # Is the future position an impossible one ?
-        hitting_maze_walls =  (row == -1) or (row == self.maze.shape[x_index]) or \
-                              (col == -1) or (col == self.maze.shape[y_index])
+        hitting_maze_walls =    (row_player == -1) or (row_player == self.maze.shape[x_index]) or \
+                                (col_player == -1) or (col_player == self.maze.shape[y_index]) or \
+                                hitting_maze_obstacle = self.maze[row,col] == 1
 
-        if not minotaur:
-            hitting_maze_obstacle = self.maze[row,col] == 1
+        
+        x_index = 2
+        y_index = 3
+
+        # Compute possible minotaur movements
+        minotaur_possible_positions = []
+        for action in self.actions_minotaur:
+            row_minotaur = self.states[state][x_index] + action[0];
+            col_minotaur = self.states[state][y_index] + action[1];
+            minotaur_possible_walks = (row_minotaur == -1) or (row_minotaur == self.maze.shape[x_index]) or \
+                                (col_minotaur == -1) or (col_minotaur == self.maze.shape[y_index])
+            if minotaur_possible_walks:
+                minotaur_possible_positions.append((row_minotaur, col_minotaur))
+        
+        # minotaur_possible_positions = [(1,1), (1,0)]
         # Based on the impossiblity check return the next state.
-        if hitting_maze_walls or hitting_maze_obstacle:
-            return state;
+        if hitting_maze_walls:
+            return state, minotaur_possible_positions;
         else:
-            return self.map[(row, col)];
+            return [self.map[(row_player, col_player, mp[0], mp[1])] for mp in minotaur_possible_positions]
 
     def __transitions(self, minotaur = False):
         """ Computes the transition probabilities for every state action pair.
@@ -122,9 +133,31 @@ class Maze:
         # are deterministic.
         for s in range(self.n_states):
             for a in range(n_actions):
-                next_s = self.__move(s,a,minotaur);
-                transition_probabilities[next_s, s, a] = 1;
+                next_possible_s = self.__move(s,a);
+                for next_s in next_possible_s:
+                    #next_s = (next_player_pose[0], next_player_pose[1], minotaur_pose[0], minotaur_pose[1]);
+                    transition_probabilities[next_s, s, a] = 1*(1/len(next_possible_s));
         return transition_probabilities;
+
+    def __unchanged_position(self, s, next_s):
+        s_state = self.states[s]
+        next_s_state = self.states[next_s]
+
+        (s_x, s_y) = (s_state[0],s_state[1])
+
+        (s_n_x, s_n_y) = (next_s_state[0], next_s_state[1])
+        
+        if (s_x, s_y) == (s_n_x, s_n_y):
+            return True
+        else:
+            return False
+
+    def __caught_by_minotaur(self, next_s):
+        state = self.states[next_s]
+        if (state[0] == state[2] and state[1] == state[3]):
+            return True
+        else:
+            return False
 
     def __rewards(self, weights=None, random_rewards=None):
 
@@ -135,31 +168,36 @@ class Maze:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     next_s = self.__move(s,a);
-                    # Rewrd for hitting a wall
-                    if s == next_s and a != self.STAY:
-                        rewards[s,a] = self.IMPOSSIBLE_REWARD;
-                    # Reward for reaching the exit
-                    elif s == next_s and self.maze[self.states[next_s]] == 2:
-                        rewards[s,a] = self.GOAL_REWARD;
-                    # Reward for taking a step to an empty cell that is not the exit
-                    elif next_s[0] == next_s[2] and next_s[1] == next_s[3]:
-                        rewards[s,a] = self.IMPOSSIBLE_REWARD
-                    else:
-                        rewards[s,a] = self.STEP_REWARD;
-                    # If there exists trapped cells with probability 0.5
-                    if random_rewards and self.maze[self.states[next_s]]<0:
-                        row, col = self.states[next_s];
-                        # With probability 0.5 the reward is
-                        r1 = (1 + abs(self.maze[row, col])) * rewards[s,a];
-                        # With probability 0.5 the reward is
-                        r2 = rewards[s,a];
-                        # The average reward
-                        rewards[s,a] = 0.5*r1 + 0.5*r2;
+                    for potential_state in next_s:
+                        # Reward for hitting a wall
+                        if self.__unchanged_position(s, potential_state) and a != self.STAY:
+                            rewards[s,a] = self.IMPOSSIBLE_REWARD;
+                        # Reward for reaching the exit
+                        elif self.__unchanged_position(s, potential_state) and self.maze[self.states[next_s]] == 2:
+                            if self.__caught_by_minotaur(potential_state):
+                                rewards[s,a] = self.IMPOSSIBLE_REWARD
+                            else:
+                                rewards[s,a] = self.GOAL_REWARD;
+                        # Reward for taking a step to an empty cell that is not the exit
+                        elif self.__caught_by_minotaur(potential_state):
+                            rewards[s,a] = self.IMPOSSIBLE_REWARD
+                        else:
+                            rewards[s,a] = self.STEP_REWARD;
+                        # If there exists trapped cells with probability 0.5
+                        if random_rewards and self.maze[self.states[next_s]]<0:
+                            row, col = self.states[next_s];
+                            # With probability 0.5 the reward is
+                            r1 = (1 + abs(self.maze[row, col])) * rewards[s,a];
+                            # With probability 0.5 the reward is
+                            r2 = rewards[s,a];
+                            # The average reward
+                            rewards[s,a] = 0.5*r1 + 0.5*r2;
         # If the weights are descrobed by a weight matrix
         else:
             for s in range(self.n_states):
                  for a in range(self.n_actions):
                      next_s = self.__move(s,a);
+                     #TODO: Does not work with minotaur, needs 4 indecies.
                      i,j = self.states[next_s];
                      # Simply put the reward as the weights o the next state.
                      rewards[s,a] = weights[i][j];
