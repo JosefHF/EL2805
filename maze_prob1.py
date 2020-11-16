@@ -202,8 +202,8 @@ class Maze:
                         # Reward for taking a step to an empty cell that is not the exit
                         elif self.__caught_by_minotaur(potential_state):
                             rewards[s,a] = self.IMPOSSIBLE_REWARD
-                        elif (np.abs(self.states[potential_state][0]-self.states[potential_state][2])+np.abs(self.states[potential_state][1]-self.states[potential_state][3])) < 3:
-                            rewards[s,a] = -50
+                        elif np.abs(self.states[potential_state][0]-self.states[potential_state][2]) < 2 and np.abs(self.states[potential_state][1]-self.states[potential_state][3]) < 2:
+                            rewards[s,a] = -2
                         else:
                             rewards[s,a] = self.STEP_REWARD;
                         # If there exists trapped cells with probability 0.5
@@ -422,10 +422,16 @@ def animate_solution(maze, path):
                 grid.get_celld()[(player_path)].get_text().set_text('Player is out')
             else:
                 grid.get_celld()[(player_path_prev)].set_facecolor(col_map[maze[player_path_prev]])
-                grid.get_celld()[(player_path_prev)].get_text().set_text('')
+                if player_path_prev == mino_path:
+                    grid.get_celld()[(player_path_prev)].get_text().set_text('Player is caught')
+                else:
+                    grid.get_celld()[(player_path_prev)].get_text().set_text('')
 
                 grid.get_celld()[(mino_path_prev)].set_facecolor(col_map[maze[mino_path_prev]])
-                grid.get_celld()[(mino_path_prev)].get_text().set_text('')
+                if player_path_prev == mino_path:
+                    grid.get_celld()[(mino_path_prev)].get_text().set_text('Minotaur won')
+                else:
+                    grid.get_celld()[(mino_path_prev)].get_text().set_text('')
 
         display.display(fig)
         display.clear_output(wait=True)
@@ -441,6 +447,9 @@ maze = np.array([
     [0, 1, 1, 1, 1, 1, 1, 0],
     [0, 0, 0, 0, 1, 2, 0, 0]
 ])
+
+
+
 '''env = Maze(maze)
 V, policy = dynamic_programming(env, 20)
 print("V: ", V, "Policy: ", policy)'''
