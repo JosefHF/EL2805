@@ -103,29 +103,33 @@ class Maze:
             row_minotaur = self.states[state][x_index] + self.actions_minotaur[action_key][0];
             col_minotaur = self.states[state][y_index] + self.actions_minotaur[action_key][1];
 
-            next_row_box = self.states[state][x_index] + self.actions_minotaur[action_key][0];
-            next_col_box = self.states[state][y_index] + self.actions_minotaur[action_key][1];
+            next_row_box = row_minotaur + self.actions_minotaur[action_key][0];
+            next_col_box = col_minotaur + self.actions_minotaur[action_key][1];
             
-            hit_obst =  row_minotaur < self.maze.shape[0] \
-                        and col_minotaur < self.maze.shape[1] \
-                        and self.maze[row_minotaur,col_minotaur] == 1 \
-                        and next_row_box < self.maze.shape[0] \
-                        and next_col_box < self.maze.shape[1] \
-                        and self.maze[next_row_box,next_col_box] != 1
-                        
+            
+            
+
+            
 
             minotaur_possible_walks =   (row_minotaur != -1) and (row_minotaur != self.maze.shape[0]) \
-                                        and hit_obst \
                                         and (col_minotaur != -1) \
                                         and (col_minotaur != self.maze.shape[1])
                                         
             if minotaur_possible_walks:
-                if hit_obst:
-                    row_minotaur = self.states[state][x_index] + self.actions_minotaur[action_key][0];
-                    col_minotaur = self.states[state][y_index] + self.actions_minotaur[action_key][1];
-                    minotaur_possible_positions.append((row_minotaur, col_minotaur))
+
+                minotaur_jump_option = self.maze[row_minotaur,col_minotaur] == 1
+                minotaur_hit_obst = next_row_box == self.maze.shape[0] \
+                                or next_col_box == self.maze.shape[1] \
+                                or next_row_box == -1 \
+                                or next_col_box == -1 \
+                                or self.maze[next_row_box,next_col_box] == 1
+
+                if minotaur_jump_option:
+                    if not minotaur_hit_obst:
+                        minotaur_possible_positions.append((next_row_box, next_col_box))
                 else:
                     minotaur_possible_positions.append((row_minotaur, col_minotaur))
+
         
         # minotaur_possible_positions = [(1,1), (1,0)]
         # Based on the impossiblity check return the next state.
@@ -198,6 +202,8 @@ class Maze:
                         # Reward for taking a step to an empty cell that is not the exit
                         elif self.__caught_by_minotaur(potential_state):
                             rewards[s,a] = self.IMPOSSIBLE_REWARD
+                        elif (np.abs(self.states[potential_state][0]-self.states[potential_state][2])+np.abs(self.states[potential_state][1]-self.states[potential_state][3])) < 3:
+                            rewards[s,a] = -50
                         else:
                             rewards[s,a] = self.STEP_REWARD;
                         # If there exists trapped cells with probability 0.5
