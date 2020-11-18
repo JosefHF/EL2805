@@ -156,6 +156,12 @@ class Maze:
             for a in range(n_actions):
                 next_possible_s = self.__move(s,a);
                 for next_s in next_possible_s:
+                    if self.states[s] == (0,0,6,5) and self.states[next_s] == (0, 1, 6, 3):
+                        print("possible state: ", len(next_possible_s))
+                        print("current state: ", (0,0,6,5))
+                        print("next_state: ", self.states[next_s])
+                        print(a)
+
                     #next_s = (next_player_pose[0], next_player_pose[1], minotaur_pose[0], minotaur_pose[1]);
                     transition_probabilities[next_s, s, a] = 1*(1/len(next_possible_s));
         return transition_probabilities;
@@ -197,13 +203,16 @@ class Maze:
                         elif self.__unchanged_position(s, potential_state) and self.maze[(self.states[potential_state][0], self.states[potential_state][1])] == 2:
                             if self.__caught_by_minotaur(potential_state):
                                 rewards[s,a] = self.IMPOSSIBLE_REWARD
+                                #rewards[s,a] = 0
                             else:
                                 rewards[s,a] = self.GOAL_REWARD;
                         # Reward for taking a step to an empty cell that is not the exit
                         elif self.__caught_by_minotaur(potential_state):
                             rewards[s,a] = self.IMPOSSIBLE_REWARD
-                        elif np.abs(self.states[potential_state][0]-self.states[potential_state][2]) < 2 and np.abs(self.states[potential_state][1]-self.states[potential_state][3]) < 2:
-                            rewards[s,a] = -2
+                            #rewards[s,a] = 0
+                        #elif (np.abs(self.states[potential_state][0]-self.states[potential_state][2]) < 2 and (self.states[potential_state][1]==self.states[potential_state][3]))\
+                        #    or ((self.states[potential_state][0] ==self.states[potential_state][2]) and np.abs(self.states[potential_state][1]==self.states[potential_state][3])<2):
+                        #    rewards[s,a] = -2
                         else:
                             rewards[s,a] = self.STEP_REWARD;
                         # If there exists trapped cells with probability 0.5
@@ -422,13 +431,13 @@ def animate_solution(maze, path):
                 grid.get_celld()[(player_path)].get_text().set_text('Player is out')
             else:
                 grid.get_celld()[(player_path_prev)].set_facecolor(col_map[maze[player_path_prev]])
-                if player_path_prev == mino_path:
+                if player_path_prev == mino_path_prev:
                     grid.get_celld()[(player_path_prev)].get_text().set_text('Player is caught')
                 else:
                     grid.get_celld()[(player_path_prev)].get_text().set_text('')
 
                 grid.get_celld()[(mino_path_prev)].set_facecolor(col_map[maze[mino_path_prev]])
-                if player_path_prev == mino_path:
+                if player_path_prev == mino_path_prev:
                     grid.get_celld()[(mino_path_prev)].get_text().set_text('Minotaur won')
                 else:
                     grid.get_celld()[(mino_path_prev)].get_text().set_text('')
