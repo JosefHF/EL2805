@@ -43,7 +43,7 @@ class Maze:
         """
         self.maze                     = maze;
         self.actions                  = self.__actions();
-        self.actions_minotaur         = self.__actions(True);
+        self.actions_minotaur         = self.__actions(False);
         self.states, self.map         = self.__states();
         self.n_actions                = len(self.actions);
         self.n_actions_minotaur       = len(self.actions_minotaur);
@@ -64,6 +64,7 @@ class Maze:
         return actions;
 
     def __states(self):
+        # TODO: Add a killed state if eaten
         states = dict();
         map = dict();
         end = False;
@@ -84,6 +85,7 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
+        # TODO: If eaten place player in the kill state with 100%
         hitting_maze_obstacle = False
         x_index = 0
         y_index = 1
@@ -426,18 +428,18 @@ def animate_solution(maze, path):
             
             mino_path_prev = path[i-1][2:4]
             
-            if path[i] == path[i-1]:
+            if path[i][0:2] == (6,5):
                 grid.get_celld()[(player_path)].set_facecolor(LIGHT_GREEN)
                 grid.get_celld()[(player_path)].get_text().set_text('Player is out')
             else:
                 grid.get_celld()[(player_path_prev)].set_facecolor(col_map[maze[player_path_prev]])
-                if player_path_prev == mino_path_prev:
+                if player_path == mino_path_prev:
                     grid.get_celld()[(player_path_prev)].get_text().set_text('Player is caught')
                 else:
                     grid.get_celld()[(player_path_prev)].get_text().set_text('')
 
                 grid.get_celld()[(mino_path_prev)].set_facecolor(col_map[maze[mino_path_prev]])
-                if player_path_prev == mino_path_prev:
+                if player_path == mino_path_prev:
                     grid.get_celld()[(mino_path_prev)].get_text().set_text('Minotaur won')
                 else:
                     grid.get_celld()[(mino_path_prev)].get_text().set_text('')
