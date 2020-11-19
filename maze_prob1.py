@@ -43,16 +43,14 @@ class Maze:
         """
         self.maze                     = maze;
         self.actions                  = self.__actions();
-        self.actions_minotaur         = self.__actions(False);
+        self.actions_minotaur         = self.__actions(True);
         self.states, self.map         = self.__states();
         self.n_actions                = len(self.actions);
         self.n_actions_minotaur       = len(self.actions_minotaur);
         self.n_states                 = len(self.states);
         self.transition_probabilities = self.__transitions();
-        #self.transition_probabilities_minotaur = self._transitions(True)
         self.rewards                  = self.__rewards(weights=weights,
                                                 random_rewards=random_rewards);
-
     def __actions(self, minotaur = False):
         actions = dict();
         if not minotaur:
@@ -65,6 +63,7 @@ class Maze:
 
     def __states(self):
         # TODO: Add a killed state if eaten
+
         states = dict();
         map = dict();
         end = False;
@@ -77,6 +76,11 @@ class Maze:
                             states[s] = (px,py,mx,my);
                             map[(px,py,mx,my)] = s;
                             s += 1;
+        #Killing state
+        states[s] = (-1,-1,-1,-1)
+        map[(-1,-1,-1,-1)] = s;
+
+
         return states, map
 
     def __move(self, state, action):
@@ -85,7 +89,13 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
-        # TODO: If eaten place player in the kill state with 100%
+        ## Added for killing state
+        if self.states[state][0] == self.states[state][2] and self.states[state][1] == self.states[state][3]:
+            return [self.map[(-1,-1,-1,-1)]]
+
+        if self.states[state][:2] == (6,5):
+            return [state] 
+
         hitting_maze_obstacle = False
         x_index = 0
         y_index = 1
@@ -93,6 +103,7 @@ class Maze:
         # Compute the future position given current (state, action)
         row_player = self.states[state][x_index] + self.actions[action][x_index];
         col_player = self.states[state][y_index] + self.actions[action][y_index];
+
         # Is the future position an impossible one ?
         hitting_maze_walls = ((row_player == -1) or (row_player == self.maze.shape[x_index]) or (col_player == -1) or (col_player == self.maze.shape[y_index]) or self.maze[row_player,col_player] == 1)
 
@@ -131,14 +142,22 @@ class Maze:
                         minotaur_possible_positions.append((next_row_box, next_col_box))
                 else:
                     minotaur_possible_positions.append((row_minotaur, col_minotaur))
-
         
+        
+
         # minotaur_possible_positions = [(1,1), (1,0)]
         # Based on the impossiblity check return the next state.
+        #print(self.states[state])
         if hitting_maze_walls:
-            return [self.map[(self.states[state][0], self.states[state][1], mp[0], mp[1])] for mp in minotaur_possible_positions]
+            return [self.map[(self.states[state][0], self.states[state][1], mp[0], mp[1])] \
+                    if (self.states[state][0] != mp[0] or self.states[state][1] != mp[1]) \
+                    and (self.states[state][0] != self.states[state][2] or self.states[state][1] != self.states[state][3]) \
+                    else self.map[(-1,-1,-1,-1)] for mp in minotaur_possible_positions]
         else:
-            return [self.map[(row_player, col_player, mp[0], mp[1])] for mp in minotaur_possible_positions]
+            return [self.map[(row_player, col_player, mp[0], mp[1])] \
+                    if (row_player != mp[0] or col_player != mp[1]) \
+                    and (row_player != self.states[state][2] or col_player != self.states[state][3]) \
+                    else self.map[(-1,-1,-1,-1)] for mp in minotaur_possible_positions]
 
     def __transitions(self, minotaur = False):
         """ Computes the transition probabilities for every state action pair.
@@ -158,12 +177,6 @@ class Maze:
             for a in range(n_actions):
                 next_possible_s = self.__move(s,a);
                 for next_s in next_possible_s:
-                    if self.states[s] == (0,0,6,5) and self.states[next_s] == (0, 1, 6, 3):
-                        print("possible state: ", len(next_possible_s))
-                        print("current state: ", (0,0,6,5))
-                        print("next_state: ", self.states[next_s])
-                        print(a)
-
                     #next_s = (next_player_pose[0], next_player_pose[1], minotaur_pose[0], minotaur_pose[1]);
                     transition_probabilities[next_s, s, a] = 1*(1/len(next_possible_s));
         return transition_probabilities;
@@ -256,6 +269,7 @@ class Maze:
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s,policy[s,t]);
                 import random
+                print(s, t, next_s)
                 next_s = random.choice(next_s)
                 # Add the position in the maze corresponding to the next state
                 # to the path
@@ -273,6 +287,11 @@ class Maze:
             next_s = self.__move(s,policy[s]);
             # Add the position in the maze corresponding to the next state
             # to the path
+
+            #Added random choice of minotaurs next action
+            import random
+            next_s = random.choice(next_s);
+            print(next_s)
             path.append(self.states[next_s]);
             # Loop while state is not the goal state
             while s != next_s:
@@ -413,52 +432,130 @@ def animate_solution(maze, path):
     for i in range(len(path)):
         player_path = path[i][0:2]
         mino_path = path[i][2:4]
-        
-        #Player
-        grid.get_celld()[(player_path)].set_facecolor(LIGHT_ORANGE)
-        grid.get_celld()[(player_path)].get_text().set_text('Player')
-        
-        #Minotaur
-        grid.get_celld()[(mino_path)].set_facecolor(LIGHT_RED)
-        grid.get_celld()[(mino_path)].get_text().set_text('Minotaur')
 
         if i > 0:
-            
             player_path_prev = path[i-1][0:2]
-            
             mino_path_prev = path[i-1][2:4]
-            
-            if path[i][0:2] == (6,5):
-                grid.get_celld()[(player_path)].set_facecolor(LIGHT_GREEN)
-                grid.get_celld()[(player_path)].get_text().set_text('Player is out')
-            else:
-                grid.get_celld()[(player_path_prev)].set_facecolor(col_map[maze[player_path_prev]])
-                if player_path == mino_path_prev:
-                    grid.get_celld()[(player_path_prev)].get_text().set_text('Player is caught')
-                else:
-                    grid.get_celld()[(player_path_prev)].get_text().set_text('')
 
-                grid.get_celld()[(mino_path_prev)].set_facecolor(col_map[maze[mino_path_prev]])
-                if player_path == mino_path_prev:
-                    grid.get_celld()[(mino_path_prev)].get_text().set_text('Minotaur won')
+            if player_path == mino_path:
+                continue
+                #grid.get_celld()[player_path_prev].set_facecolor(WHITE)
+                #grid.get_celld()[(player_path_prev)].get_text().set_text('')
+
+                #grid.get_celld()[mino_path_prev].set_facecolor(WHITE)
+                #grid.get_celld()[(mino_path_prev)].get_text().set_text('')
+
+                #grid.get_celld()[player_path].set_facecolor(LIGHT_RED)
+                #grid.get_celld()[(player_path)].get_text().set_text('Player is caught')
+
+            else:
+                grid.get_celld()[player_path_prev].set_facecolor(WHITE)
+                grid.get_celld()[(player_path_prev)].get_text().set_text('')
+
+                grid.get_celld()[mino_path_prev].set_facecolor(WHITE)
+                grid.get_celld()[(mino_path_prev)].get_text().set_text('')
+
+                grid.get_celld()[(player_path)].set_facecolor(LIGHT_ORANGE)
+                grid.get_celld()[(mino_path)].set_facecolor(LIGHT_RED)
+
+                if path[i][0:2] == (6,5):
+                    grid.get_celld()[(player_path)].set_facecolor(LIGHT_GREEN)
+                    grid.get_celld()[(player_path)].get_text().set_text('Player is out')
+                    grid.get_celld()[(mino_path)].get_text().set_text('Minotaur')
                 else:
-                    grid.get_celld()[(mino_path_prev)].get_text().set_text('')
+                    grid.get_celld()[(player_path)].get_text().set_text('Player')
+                    grid.get_celld()[(mino_path)].get_text().set_text('Minotaur')
+        else:
+            #Player
+            grid.get_celld()[(player_path)].set_facecolor(LIGHT_ORANGE)
+            grid.get_celld()[(player_path)].get_text().set_text('Player')
+            
+            #Minotaur
+            grid.get_celld()[(mino_path)].set_facecolor(LIGHT_RED)
+            grid.get_celld()[(mino_path)].get_text().set_text('Minotaur')
+
+        # if i > 0:
+            
+        #     player_path_prev = path[i-1][0:2]
+            
+        #     mino_path_prev = path[i-1][2:4]
+            
+        #     if path[i][0:2] == (6,5):
+        #         grid.get_celld()[(player_path)].set_facecolor(LIGHT_GREEN)
+        #         grid.get_celld()[(player_path)].get_text().set_text('Player is out')
+        #     else:
+        #         grid.get_celld()[(player_path_prev)].set_facecolor(col_map[maze[player_path_prev]])
+        #         if player_path == mino_path_prev:
+        #             grid.get_celld()[(player_path_prev)].get_text().set_text('Player is caught')
+        #         else:
+        #             grid.get_celld()[(player_path_prev)].get_text().set_text('')
+
+        #         grid.get_celld()[(mino_path_prev)].set_facecolor(col_map[maze[mino_path_prev]])
+        #         if player_path == mino_path_prev:
+        #             grid.get_celld()[(mino_path_prev)].get_text().set_text('Minotaur won')
+        #         else:
+        #             grid.get_celld()[(mino_path_prev)].get_text().set_text('')
 
         display.display(fig)
         display.clear_output(wait=True)
         time.sleep(1)
 
 
-maze = np.array([
-    [0, 0, 1, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0, 1, 1, 1],
-    [0, 0, 1, 0, 0, 1, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 1, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 1, 2, 0, 0]
-])
+def value_iteration(env, gamma, epsilon):
+    """ Solves the shortest path problem using value iteration
+        :input Maze env           : The maze environment in which we seek to
+                                    find the shortest path.
+        :input float gamma        : The discount factor.
+        :input float epsilon      : accuracy of the value iteration procedure.
+        :return numpy.array V     : Optimal values for every state at every
+                                    time, dimension S*T
+        :return numpy.array policy: Optimal time-varying policy at every state,
+                                    dimension S*T
+    """
+    # The value itearation algorithm requires the knowledge of :
+    # - Transition probabilities
+    # - Rewards
+    # - State space
+    # - Action space
+    # - The finite horizon
+    p         = env.transition_probabilities;
+    r         = env.rewards;
+    n_states  = env.n_states;
+    n_actions = env.n_actions;
 
+    # Required variables and temporary ones for the VI to run
+    V   = np.zeros(n_states);
+    Q   = np.zeros((n_states, n_actions));
+    BV  = np.zeros(n_states);
+    # Iteration counter
+    n   = 0;
+    # Tolerance error
+    tol = (1 - gamma)* epsilon/gamma;
+
+    # Initialization of the VI
+    for s in range(n_states):
+        for a in range(n_actions):
+            Q[s, a] = r[s, a] + gamma*np.dot(p[:,s,a],V);
+    BV = np.max(Q, 1);
+
+    # Iterate until convergence
+    while np.linalg.norm(V - BV) >= tol and n < 200:
+        # Increment by one the numbers of iteration
+        n += 1;
+        # Update the value function
+        V = np.copy(BV);
+        # Compute the new BV
+        for s in range(n_states):
+            for a in range(n_actions):
+                Q[s, a] = r[s, a] + gamma*np.dot(p[:,s,a],V);
+        BV = np.max(Q, 1);
+        # Show error
+        #print(np.linalg.norm(V - BV))
+
+    # Compute policy
+    policy = np.argmax(Q,1);
+    # Return the obtained policy
+    return V, policy;
 
 
 '''env = Maze(maze)
