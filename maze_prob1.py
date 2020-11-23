@@ -33,9 +33,9 @@ class Maze:
     }
 
     # Reward values
-    STEP_REWARD = -1
-    GOAL_REWARD = 0
-    IMPOSSIBLE_REWARD = -100
+    STEP_REWARD = -1.0
+    GOAL_REWARD = 0.0
+    IMPOSSIBLE_REWARD = -100.0
 
 
     def __init__(self, maze, weights=None, random_rewards=False):
@@ -93,8 +93,8 @@ class Maze:
         if self.states[state][0] == self.states[state][2] and self.states[state][1] == self.states[state][3]:
             return [self.map[(-1,-1,-1,-1)]]
 
-        if self.states[state][:2] == (6,5):
-            return [state] 
+        if self.maze[self.states[state][:2]] == 2:
+            return [state]
 
         hitting_maze_obstacle = False
         x_index = 0
@@ -178,7 +178,7 @@ class Maze:
                 next_possible_s = self.__move(s,a);
                 for next_s in next_possible_s:
                     #next_s = (next_player_pose[0], next_player_pose[1], minotaur_pose[0], minotaur_pose[1]);
-                    transition_probabilities[next_s, s, a] = 1*(1/len(next_possible_s));
+                    transition_probabilities[next_s, s, a] = (1.0/float(len(next_possible_s)));
         return transition_probabilities;
 
     def __unchanged_position(self, s, next_s):
@@ -207,38 +207,36 @@ class Maze:
 
         # If the rewards are not described by a weight matrix
         if weights is None:
-            for s in range(self.n_states):
+            for s in range(self.n_states):                    
                 for a in range(self.n_actions):
                     next_s = self.__move(s,a);
+                    cummulative_reward = 0.0
                     for potential_state in next_s:
-                        # Reward for hitting a wall
-                        if self.__unchanged_position(s, potential_state) and a != self.STAY:
-                            rewards[s,a] = self.IMPOSSIBLE_REWARD;
-                        # Reward for reaching the exit
-                        elif self.__unchanged_position(s, potential_state) and self.maze[(self.states[potential_state][0], self.states[potential_state][1])] == 2:
-                            if self.__caught_by_minotaur(potential_state):
-                                rewards[s,a] = self.IMPOSSIBLE_REWARD
-                                #rewards[s,a] = 0
-                            else:
-                                rewards[s,a] = self.GOAL_REWARD;
-                        # Reward for taking a step to an empty cell that is not the exit
-                        elif self.__caught_by_minotaur(potential_state):
-                            rewards[s,a] = self.IMPOSSIBLE_REWARD
-                            #rewards[s,a] = 0
-                        #elif (np.abs(self.states[potential_state][0]-self.states[potential_state][2]) < 2 and (self.states[potential_state][1]==self.states[potential_state][3]))\
-                        #    or ((self.states[potential_state][0] ==self.states[potential_state][2]) and np.abs(self.states[potential_state][1]==self.states[potential_state][3])<2):
-                        #    rewards[s,a] = -2
+                        if s == self.map[(-1,-1,-1,-1)]:
+                            cummulative_reward += 0
+                        if self.__caught_by_minotaur(potential_state):
+                            cummulative_reward += self.IMPOSSIBLE_REWARD
+                        elif self.__unchanged_position(s, potential_state) and a != self.STAY:
+                            cummulative_reward += self.IMPOSSIBLE_REWARD
+                        elif self.states[potential_state][:2] == (6,5):
+                            #print("We have won")
+                            #if self.__unchanged_position(s, potential_state):
+                                #cummulative_reward += 0.0
+                            #else:
+                            cummulative_reward += self.GOAL_REWARD
                         else:
-                            rewards[s,a] = self.STEP_REWARD;
-                        # If there exists trapped cells with probability 0.5
-                        if random_rewards and self.maze[self.states[next_s]]<0:
-                            row, col = self.states[next_s];
-                            # With probability 0.5 the reward is
-                            r1 = (1 + abs(self.maze[row, col])) * rewards[s,a];
-                            # With probability 0.5 the reward is
-                            r2 = rewards[s,a];
-                            # The average reward
-                            rewards[s,a] = 0.5*r1 + 0.5*r2;
+                            cummulative_reward += self.STEP_REWARD
+                    rewards[s,a] = cummulative_reward/len(next_s)
+                        
+                        
+                    '''if random_rewards and self.maze[self.states[next_s]]<0:
+                        row, col = self.states[next_s];
+                        # With probability 0.5 the reward is
+                        r1 = (1 + abs(self.maze[row, col])) * rewards[s,a];
+                        # With probability 0.5 the reward is
+                        r2 = rewards[s,a];
+                        # The average reward
+                        rewards[s,a] = 0.5*r1 + 0.5*r2;'''
         # If the weights are descrobed by a weight matrix
         else:
             for s in range(self.n_states):
@@ -269,7 +267,7 @@ class Maze:
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s,policy[s,t]);
                 import random
-                print(s, t, next_s)
+                #print(s, t, next_s)
                 next_s = random.choice(next_s)
                 # Add the position in the maze corresponding to the next state
                 # to the path
@@ -291,7 +289,7 @@ class Maze:
             #Added random choice of minotaurs next action
             import random
             next_s = random.choice(next_s);
-            print(next_s)
+            #print(next_s)
             path.append(self.states[next_s]);
             # Loop while state is not the goal state
             while s != next_s:
@@ -299,6 +297,7 @@ class Maze:
                 s = next_s;
                 # Move to next state given the policy and the current state
                 next_s = self.__move(s,policy[s]);
+                next_s = random.choice(next_s)
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
