@@ -136,8 +136,9 @@ class Maze:
                     if np.abs(self.states[state][1]-col_police) <= prev_distance_col:
                         police_possible_positions.append((row_police, col_police))
                 else:
-                    if np.abs(self.states[state][0]-row_police) <= prev_distance_row or np.abs(self.states[state][1]-col_police) <= prev_distance_col:
-                        police_possible_positions.append((row_police, col_police))   
+                    if (np.abs(self.states[state][0]-row_police) < prev_distance_row and np.abs(self.states[state][1]-col_police) == prev_distance_col)\
+                        or (np.abs(self.states[state][0]-row_police) == prev_distance_row and np.abs(self.states[state][1]-col_police) < prev_distance_col):
+                        police_possible_positions.append((row_police, col_police))
                     #print("state: ", self.states[state])
                     #print("row_p", row_police)
                     #print("col_p: ", col_police)
@@ -525,6 +526,9 @@ def value_iteration(env, gamma, epsilon):
     V   = np.zeros(n_states);
     Q   = np.zeros((n_states, n_actions));
     BV  = np.zeros(n_states);
+
+    V_complete = []
+    Policy_complete = []
     # Iteration counter
     n   = 0;
     # Tolerance error
@@ -535,9 +539,10 @@ def value_iteration(env, gamma, epsilon):
         for a in range(n_actions):
             Q[s, a] = r[s, a] + gamma*np.dot(p[:,s,a],V);
     BV = np.max(Q, 1);
-
+    V_complete.append(BV)
+    Policy_complete.append(np.argmax(Q,1))
     # Iterate until convergence
-    while np.linalg.norm(V - BV) >= tol and n < 200:
+    while np.linalg.norm(V - BV) >= tol:
         # Increment by one the numbers of iteration
         n += 1;
         # Update the value function
@@ -547,13 +552,14 @@ def value_iteration(env, gamma, epsilon):
             for a in range(n_actions):
                 Q[s, a] = r[s, a] + gamma*np.dot(p[:,s,a],V);
         BV = np.max(Q, 1);
+        V_complete.append(BV)
         # Show error
         #print(np.linalg.norm(V - BV))
-
+        Policy_complete.append(np.argmax(Q,1))
     # Compute policy
     policy = np.argmax(Q,1);
     # Return the obtained policy
-    return V, policy;
+    return V, policy, V_complete, Policy_complete;
 
 
 '''env = Maze(maze)
